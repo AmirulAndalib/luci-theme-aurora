@@ -182,6 +182,198 @@ function createLocalServePlugin(): Plugin {
   };
 }
 
+// Mock pages: render saved LuCI page snapshots against the live theme, so a
+// third-party app's page can be styled without the app (or a device) installed.
+// Snapshots live in .dev/mocks/*.html and are served at /mocks/<name>.html
+// with the Vite HMR client injected, so theme edits (main.css, components,
+// patches/*.css, served JS) trigger the existing full-reload in handleHotUpdate.
+// Any third-party asset a snapshot needs (the app's own css/js, e.g.
+// qmodem-next.css) goes under .dev/mocks/static/ mirroring its /luci-static/…
+// URL and is served as-is (no HMR). See "Mock Pages" in .dev/docs/DEVELOPMENT.md.
+const MOCK_ROUTE = "/mocks";
+const MOCKS_DIR = resolve(CURRENT_DIR, "mocks");
+const MOCKS_STATIC_DIR = join(MOCKS_DIR, "static");
+
+const MOCK_MIME: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".map": "application/json; charset=utf-8",
+};
+
+function mockContentType(file: string): string {
+  const ext = file.slice(file.lastIndexOf("."));
+  return MOCK_MIME[ext] ?? "application/octet-stream";
+}
+
+// Inject the Vite HMR client so a served snapshot joins the WS channel and
+// receives handleHotUpdate's full-reload broadcast on any theme source change.
+function injectHmrClient(html: string): string {
+  if (html.includes("/@vite/client")) return html;
+  const tag = `\n    <script type="module" src="/@vite/client"></script>\n`;
+  return html.includes("</head>")
+    ? html.replace("</head>", `${tag}  </head>`)
+    : tag + html;
+}
+
+// A snapshot is static DOM. Left alone, LuCI's runtime (luci.js + the inline
+// `new LuCI(...)` bootstrap) boots, polls the backend, gets 403 (no session)
+// and pops the "Session expired" modal. Neutralise it for mock rendering:
+// strip the scripts that phone home (luci.js/cbi.js and /cgi-bin/ endpoints)
+// and pre-define a no-op `L`/`LuCI` stub so the remaining inline bootstraps
+// (`new LuCI(...)`, `L.require(...)`) run harmlessly. Theme CSS/JS and the
+// theme's own inline scripts (dark mode, toolbar) are untouched; framework-
+// dependent theme JS such as menu-aurora simply no-ops — the captured DOM is
+// already fully rendered, so a static review still looks right.
+const MOCK_RUNTIME_GUARD = `<script>
+    (function () {
+      var stub = new Proxy(function () {}, {
+        get: function () { return stub; },
+        apply: function () { return stub; },
+        construct: function () { return stub; },
+      });
+      window.L = stub;
+      window.LuCI = stub;
+    })();
+    </script>`;
+
+function neutralizeLuciRuntime(html: string): string {
+  const stripped = html.replace(
+    /<script\b[^>]*\bsrc="[^"]*(?:\/luci-static\/resources\/(?:luci|cbi)\.js|\/cgi-bin\/)[^"]*"[^>]*>\s*<\/script>/gi,
+    "",
+  );
+  return stripped.includes("</head>")
+    ? stripped.replace(/<head\b[^>]*>/i, (m) => `${m}\n    ${MOCK_RUNTIME_GUARD}`)
+    : MOCK_RUNTIME_GUARD + stripped;
+}
+
+function renderMockIndex(files: string[]): string {
+  const rows = files.length
+    ? files
+        .map(
+          (f) =>
+            `<li><a href="${MOCK_ROUTE}/${encodeURIComponent(f)}">${f}</a></li>`,
+        )
+        .join("\n      ")
+    : `<li class="empty">No snapshots yet — drop a page's HTML into <code>.dev/mocks/</code></li>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Aurora mock pages</title>
+  <style>
+    body{font:15px/1.6 system-ui,-apple-system,sans-serif;max-width:680px;margin:48px auto;padding:0 20px;color:#1a1a1a}
+    h1{font-size:20px;margin:0 0 4px}
+    p.sub{color:#888;font-size:13px;margin:0 0 24px}
+    ul{list-style:none;padding:0;margin:0}
+    li{margin:8px 0}
+    li a{display:inline-block;padding:8px 14px;border:1px solid #d0d0d0;border-radius:8px;text-decoration:none;color:#0a7d4b;font-weight:500}
+    li a:hover{background:#f5f5f5}
+    li.empty{color:#888}
+    code{background:#f0f0f0;padding:1px 6px;border-radius:4px;font-size:13px}
+    @media(prefers-color-scheme:dark){body{background:#111;color:#eee}li a{border-color:#333;color:#4ade80}li a:hover{background:#1c1c1c}code{background:#222}}
+  </style>
+</head>
+<body>
+  <h1>Aurora mock pages</h1>
+  <p class="sub">Saved snapshots served against the live theme. Edit theme CSS/JS → the open page hot-reloads.</p>
+  <ul>
+      ${rows}
+  </ul>
+</body>
+</html>`;
+}
+
+function createMockPlugin(): Plugin {
+  return {
+    name: "mock-pages-plugin",
+    apply: "serve",
+    enforce: "pre",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const [pathname] = req.url.split("?");
+
+        // Index of available snapshots.
+        if (pathname === MOCK_ROUTE || pathname === `${MOCK_ROUTE}/`) {
+          const files = existsSync(MOCKS_DIR)
+            ? readdirSync(MOCKS_DIR)
+                .filter((f) => f.endsWith(".html"))
+                .sort()
+            : [];
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(renderMockIndex(files));
+          return;
+        }
+
+        // A single snapshot, with the HMR client injected.
+        if (
+          pathname.startsWith(`${MOCK_ROUTE}/`) &&
+          pathname.endsWith(".html")
+        ) {
+          const name = basename(decodeURIComponent(pathname));
+          const file = resolve(MOCKS_DIR, name);
+          if (!file.startsWith(MOCKS_DIR + sep) || !existsSync(file)) {
+            res.statusCode = 404;
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.end(
+              `<!doctype html><meta charset="utf-8"><p>Mock not found: ${name} — <a href="${MOCK_ROUTE}/">back to index</a>`,
+            );
+            return;
+          }
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          const snapshot = await readFile(file, "utf-8");
+          res.end(injectHmrClient(neutralizeLuciRuntime(snapshot)));
+          return;
+        }
+
+        // Third-party static drop-ins the snapshot references (the app's own
+        // css/js) — reached only when local-serve didn't already claim the path.
+        if (pathname.startsWith("/luci-static/")) {
+          let file: string;
+          try {
+            file = resolve(
+              MOCKS_STATIC_DIR,
+              decodeURIComponent(pathname.slice(1)),
+            );
+          } catch {
+            return next();
+          }
+          if (
+            file.startsWith(MOCKS_STATIC_DIR + sep) &&
+            existsSync(file) &&
+            statSync(file).isFile()
+          ) {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", mockContentType(file));
+            res.setHeader("Cache-Control", "no-store");
+            res.end(await readFile(file));
+            return;
+          }
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 const UT_TEMPLATE_DIR = resolve(PROJECT_ROOT, "ucode/template/themes/aurora");
 const UT_REMOTE_DIR = "/usr/share/ucode/luci/template/themes/aurora";
 
@@ -371,6 +563,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       createRedirectPlugin(),
       createLocalServePlugin(),
+      createMockPlugin(),
       createUtSyncPlugin(OPENWRT_SSH_HOST),
       createLuciJsCompressPlugin(),
     ],

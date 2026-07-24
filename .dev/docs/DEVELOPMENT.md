@@ -173,6 +173,16 @@ Two rules of thumb that follow from prefix matching:
 
 > Unlike the `_`-prefixed partials (which are `@import`-only fragments), patch filenames have no `_` prefix — each is a real build entry that ships to `htdocs/`.
 
+### Mock Pages
+
+Style a third-party app's page — write or adjust its `patches/*.css`, or check a `main.css`/component change against it — **without having the app (or a device) installed**. Save the page's rendered HTML once, then develop against it with the theme live and hot-reloading.
+
+- **Where snapshots live:** `.dev/mocks/*.html` (git-ignored — snapshots are large, device/fork-specific and go stale, so they stay local). The directory need not exist in a fresh clone; it's created the first time you drop a file in.
+- **Capture one:** on a device that has the page, open it and run `copy(document.documentElement.outerHTML)` in the DevTools console (or "Save Page As → HTML only"). Save it as `.dev/mocks/<name>.html`. The name is free — the page's real identity is the `data-page` attribute already in its `<body>`, which patch selectors match.
+- **View:** `pnpm dev`, then open <http://localhost:5173/mocks/> — an auto-generated index lists every snapshot. The `mock-pages-plugin` (in `vite.config.ts`) serves each page with the Vite HMR client injected, so editing any theme source (`main.css`, a component, a `patches/*.css`, or served JS) triggers the usual full reload (see [Live Reload Behavior](#live-reload-behavior)). The snapshot keeps its absolute `/luci-static/…` links; theme CSS/JS, fonts and images resolve locally and compile on the fly.
+- **Third-party assets:** an app's own css/js the snapshot references (e.g. `qmodem-next.css`, `cbi.js`) isn't in this repo. To serve it, mirror its URL under `.dev/mocks/static/` (e.g. `.dev/mocks/static/luci-static/resources/qmodem/qmodem-next.css`); files there are served as-is (no HMR). Missing ones just 404 — the theme still applies.
+- **No auth, no runtime:** a snapshot is static DOM, so `mock-pages-plugin` strips LuCI's runtime scripts (`luci.js`/`cbi.js` and `/cgi-bin/` endpoints) and injects a no-op `L`/`LuCI` stub before serving. Without this, LuCI boots, polls the backend, gets 403 (no session) and pops the "Session expired" modal. The trade-off: framework-dependent theme JS (e.g. `menu-aurora`) no-ops in mocks — the captured DOM is already rendered, so it still looks right. The theme's own inline scripts (dark mode, toolbar state) and any `src/media/` JS still run.
+
 ### Design Tokens
 
 `src/media/_tokens.css` is **generated** — its header says "DO NOT EDIT". The source of truth is the standalone [`@eamonxg/aurora-tokens`](https://github.com/eamonxg/aurora-tokens) npm package, consumed here as a devDependency:
@@ -284,6 +294,7 @@ luci-theme-aurora/
 ├── .dev/                           # Development environment
 │   ├── docs/                       # Project documentation
 │   │   └── DEVELOPMENT.md          # Development guide (this file)
+│   ├── mocks/                      # Local page snapshots for /mocks/ (git-ignored, see Mock Pages)
 │   ├── public/aurora/              # Public static assets
 │   │   ├── fonts/                  # Web fonts (Lato)
 │   │   └── images/                 # Theme images + PWA icons
