@@ -1,5 +1,9 @@
+/* The bar carries no colour transition: one would ease its bg/text over
+   --mega-menu-duration on every data-darkmode flip, lagging the bar behind
+   the untransitioned page in all three nav modes. The mega-menu wipe colour
+   lives on .desktop-menu-sheet below, which owns its transition. */
 header {
-  @apply bg-bg sticky top-0 z-40 mb-2 transition-colors duration-(--mega-menu-duration,300ms) ease-[cubic-bezier(0.4,0,0.6,1)];
+  @apply bg-bg sticky top-0 z-40 mb-2;
 
   & .header-content {
     @apply relative z-10 flex h-14 items-center justify-between px-6 py-3 max-md:px-4 max-md:py-2;

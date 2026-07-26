@@ -1056,8 +1056,9 @@ return baseclass.extend({
         );
       }
       // Both vars live on the header, not the container: the container
-      // inherits the height, and the header's own transition-colors reads
-      // the duration so the bar colour fades in lockstep with the wipe.
+      // inherits both, and the close fallback timer reads the duration
+      // back off the header (the bar itself must stay transition-free so
+      // theme flips repaint it in the same frame as the page).
       header.style.setProperty("--mega-menu-height", `${canvasHeight}px`);
       header.style.setProperty("--mega-menu-duration", `${revealDuration}ms`);
     };
