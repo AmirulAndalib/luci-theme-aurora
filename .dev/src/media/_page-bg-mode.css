@@ -16,13 +16,18 @@ body[data-bg] {
     --page-bg-lqip: var(--main-bg-lqip);
   }
 
-  /* The fixed .page-bg paints above non-positioned flow content (positioned
-     elements come after in-flow blocks in the painting order) — the login
-     page has always dodged this via .login-screen's relative. Lift the admin
-     content the same way. A negative z-index on the layer is NOT an option:
-     body's own opaque background would then cover the image. */
+  /* Two jobs on one element. relative: the fixed .page-bg paints above
+     non-positioned flow content (positioned elements come after in-flow
+     blocks in the painting order) — the login page has always dodged this
+     via .login-screen's relative; a negative z-index on the layer is NOT an
+     option, body's own opaque background would cover the image. canvas: a
+     --bg-derived translucent wash under ALL content is what makes ARBITRARY
+     plugin DOM readable — bare headings, descriptions and hand-rolled
+     widgets sit on this floor instead of the raw photo, with zero
+     per-plugin knowledge. 55% is a deliberate internal constant, not a
+     fourth tunable. */
   & #maincontent {
-    @apply relative;
+    @apply relative [background:color-mix(in_srgb,var(--bg)_55%,transparent)];
   }
 
   & header,

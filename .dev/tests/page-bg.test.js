@@ -97,3 +97,11 @@ test("admin content is lifted above the fixed background layer", () => {
   const mode = read("../src/media/_page-bg-mode.css");
   assert.match(mode, /& #maincontent\s*\{[^}]*relative/);
 });
+
+// 内容画布:#maincontent 铺一层派生自 --bg 的半透明底,给任意插件 DOM 一个
+// 可读性地板——兼容性不靠认识每个组件,靠这一条通用规则。55% 是定死的
+// 内部常量,刻意不做成配置项。
+test("the content canvas floors readability for arbitrary plugin DOM", () => {
+  const mode = read("../src/media/_page-bg-mode.css");
+  assert.match(mode, /& #maincontent\s*\{[^}]*color-mix\(in_srgb,var\(--bg\)_55%,transparent\)/);
+});
