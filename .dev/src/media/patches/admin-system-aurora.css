@@ -4,62 +4,75 @@
   Native declarations keep this standalone patch free of Tailwind helper
   output; theme values come through the :root custom properties.
 
-  The background component (segmented target switch, live preview, slider
-  rows) renders inside LuCI's .cbi-value flex rows; these classes take the
-  rows out of the label/field two-column layout so the V1 single-column
-  flow holds together instead of being reflowed by the form grid.
+  Design A: the two background targets sit side by side as always-visible
+  picker cards (select in the card head, mini preview below); one shared
+  slider pane under the pair follows whichever card is active. No tab ever
+  hides the other target's state.
 */
 
-[data-bg-target].cbi-value,
-.bg-seg-row.cbi-value {
+[data-bg-target].cbi-value {
   display: block;
 }
 
-[data-bg-target] > .cbi-value-title,
-.bg-seg-row > .cbi-value-title {
+[data-bg-target] > .cbi-value-title {
   display: none;
 }
 
-[data-bg-target] > .cbi-value-field,
-.bg-seg-row > .cbi-value-field {
-  max-width: 620px;
+/* 双卡并排;窄屏落回单列 */
+.bg-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 760px;
 }
 
-/* theme-switcher 同款分段胶囊 */
-.bg-seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
+@media (width < 680px) {
+  .bg-duo {
+    grid-template-columns: 1fr;
+  }
 }
 
-.bg-seg button {
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.35rem 1.1rem;
-  border-radius: 999px;
+.bg-duo [data-bg-target].cbi-value {
+  margin: 0;
+  padding: 0.8rem;
+  border: 2px solid var(--hairline);
+  border-radius: calc(var(--radius-base) * 1.8);
+  background: var(--surface);
   cursor: pointer;
+  transition: border-color 0.15s;
 }
 
-.bg-seg button.on {
-  background: var(--text);
-  color: var(--surface);
-  font-weight: 600;
+.bg-duo [data-bg-target].on {
+  border-color: var(--brand);
+}
+
+.bg-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.6rem;
+}
+
+.bg-card-title {
+  font-weight: 650;
+  font-size: 0.95rem;
+  white-space: nowrap;
 }
 
 .bg-preview {
   position: relative;
   overflow: hidden;
-  height: 210px;
-  margin: 0.75rem 0 0.25rem;
+  height: 130px;
   border: 1px solid var(--hairline);
-  border-radius: calc(var(--radius-base) * 1.5);
+  border-radius: var(--radius-base);
   background: var(--bg);
+}
+
+/* 共享滑杆面板:跟随选中的卡 */
+.bg-pane {
+  max-width: 620px;
+  margin-top: 1rem;
 }
 
 .bg-srow {
