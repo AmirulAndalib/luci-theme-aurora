@@ -1,0 +1,33 @@
+/**
+ * Admin custom-background mode (scheme D) — active only when header.ut saw
+ * struct_main_bg and stamped <body data-bg>. Without the attribute none of
+ * these selectors match and the page paints exactly as it does today.
+ *
+ * Frost only the two small fixed chrome surfaces (the budget Apple's own
+ * iOS chrome runs on); cards stay blur-free alpha blends. Every color
+ * derives from --bg/--surface via color-mix, so custom palettes and dark
+ * mode follow automatically. The three tunables default in var() fallbacks,
+ * never on body — the config app's UCI overrides land on :root and a
+ * body-level declaration would mask them.
+ */
+body[data-bg] {
+  & .page-bg {
+    --page-bg: var(--main-bg);
+    --page-bg-lqip: var(--main-bg-lqip);
+  }
+
+  & header,
+  & .sidebar-panel-inner {
+    @apply [background:color-mix(in_srgb,var(--bg)_var(--main-bg-alpha,67%),transparent)] [backdrop-filter:blur(var(--main-bg-blur,20px))_saturate(150%)];
+  }
+
+  /* Scrim washes toward the theme bg to keep contrast; z-1 lifts it above
+     the ::after full-image layer (siblings otherwise paint after ::before). */
+  & .page-bg::before {
+    @apply pointer-events-none absolute inset-0 z-1 content-[''] [background:color-mix(in_srgb,var(--bg)_var(--main-bg-scrim,20%),transparent)];
+  }
+
+  & #maincontent .cbi-section {
+    @apply [background:color-mix(in_srgb,var(--surface)_var(--main-bg-alpha,67%),transparent)];
+  }
+}
