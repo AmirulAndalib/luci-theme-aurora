@@ -89,3 +89,11 @@ test("reduced transparency restores opaque surfaces under a custom background", 
   const rt = read("../src/media/_reduced-transparency.css");
   assert.match(rt, /body\[data-bg\][^}]*--main-bg-alpha:\s*100%/s);
 });
+
+// 固定定位的 .page-bg 按 CSS 绘制顺序画在非 positioned 普通流内容之上——
+// 登录页靠 .login-screen 的 relative 浮起,admin 侧必须同样把 #maincontent
+// 提为 relative。负 z-index 不是出路:body 自身不透明背景会把层盖掉。
+test("admin content is lifted above the fixed background layer", () => {
+  const mode = read("../src/media/_page-bg-mode.css");
+  assert.match(mode, /& #maincontent\s*\{[^}]*relative/);
+});

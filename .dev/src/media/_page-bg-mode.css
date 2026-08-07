@@ -16,6 +16,15 @@ body[data-bg] {
     --page-bg-lqip: var(--main-bg-lqip);
   }
 
+  /* The fixed .page-bg paints above non-positioned flow content (positioned
+     elements come after in-flow blocks in the painting order) — the login
+     page has always dodged this via .login-screen's relative. Lift the admin
+     content the same way. A negative z-index on the layer is NOT an option:
+     body's own opaque background would then cover the image. */
+  & #maincontent {
+    @apply relative;
+  }
+
   & header,
   & .sidebar-panel-inner {
     @apply [background:color-mix(in_srgb,var(--bg)_var(--main-bg-alpha,67%),transparent)] [backdrop-filter:blur(var(--main-bg-blur,20px))_saturate(150%)];
