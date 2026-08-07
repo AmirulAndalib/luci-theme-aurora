@@ -51,8 +51,9 @@ test("header.ut gates every main-bg artifact on struct_main_bg", () => {
   assert.match(ut, /function bg_preload_url/);
   assert.match(ut, /bg_preload_url\(tokens\.struct_login_bg\)/);
   assert.match(ut, /bg_preload_url\(tokens\.struct_main_bg\)/);
-  // body 的 data-bg 属性与其 struct_main_bg 守卫在同一行模板上
-  assert.match(ut, /!blank_page && tokens\.struct_main_bg[^\n]*data-bg/);
+  // body 的 data-bg 属性与其守卫在同一行模板上:admin 看 struct_main_bg,
+  // 登录页看 struct_login_bg(登录三参数需要这个开关)
+  assert.match(ut, /blank_page \? tokens\.struct_login_bg : tokens\.struct_main_bg[^\n]*data-bg/);
   assert.match(ut, /class="page-bg"/);
   // admin loader 与 sysauth 同款:读元素自身的 --page-bg
   assert.match(ut, /getComputedStyle\(bg\)\.getPropertyValue\('--page-bg'\)/);
@@ -104,4 +105,23 @@ test("admin content is lifted above the fixed background layer", () => {
 test("the content canvas floors readability for arbitrary plugin DOM", () => {
   const mode = read("../src/media/_page-bg-mode.css");
   assert.match(mode, /& #maincontent\s*\{[^}]*color-mix\(in_srgb,var\(--bg\)_55%,transparent\)/);
+});
+
+// 登录背景的三参数:卡片半透明+磨砂、全屏遮罩。默认 100%/0px/0% 逐像素
+// 复刻无参数时的现状——老用户零变化,磨砂玻璃卡是拉了滑杆才有的选择。
+test("login tunables default to today's exact look", () => {
+  const login = read("../src/media/login.css");
+  assert.match(login, /var\(--login-bg-alpha,100%\)/);
+  assert.match(login, /var\(--login-bg-blur,0px\)/);
+  assert.match(login, /var\(--login-bg-scrim,0%\)/);
+  assert.match(login, /body\[data-bg\] \.login-card/);
+  // 无障碍:减少透明度偏好下登录卡回不透明——必须写在 login.css 自己身上
+  // (它不引入 _reduced-transparency.css,否则会拖进 admin 专属 token)
+  assert.match(login, /prefers-reduced-transparency[^}]*\{[^]*?--login-bg-alpha:\s*100%/);
+  // 登录页设了背景时 body 也要打 data-bg(模板守卫)
+  const ut = readFileSync(
+    new URL("../../ucode/template/themes/aurora/header.ut", import.meta.url),
+    "utf8"
+  );
+  assert.match(ut, /blank_page && tokens\.struct_login_bg[^\n]*data-bg|\(blank_page \? tokens\.struct_login_bg : tokens\.struct_main_bg\)[^\n]*data-bg/);
 });

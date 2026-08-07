@@ -68,6 +68,29 @@
   --page-bg-lqip: var(--login-bg-lqip);
 }
 
+/* Login tunables — the var() fallbacks reproduce today's look exactly
+   (opaque card, no blur, no scrim), so an unset config changes nothing;
+   the config app's :root overrides pull them live. data-bg is stamped by
+   header.ut only when a login background is set. */
+body[data-bg] .page-bg::before {
+  @apply pointer-events-none absolute inset-0 z-1 content-[''] [background:color-mix(in_srgb,var(--bg)_var(--login-bg-scrim,0%),transparent)];
+}
+
+body[data-bg] .login-card {
+  @apply [background:color-mix(in_srgb,var(--surface)_var(--login-bg-alpha,100%),transparent)] [backdrop-filter:blur(var(--login-bg-blur,0px))_saturate(150%)];
+}
+
+/* login.css does not import _reduced-transparency.css (it would drag
+   admin-only tokens into the pruned sheet), so the login card carries its
+   own fallback: no blur, and the local --login-bg-alpha declaration
+   outranks the :root override to restore full opacity. */
+@media (prefers-reduced-transparency: reduce) {
+  body[data-bg] .login-card {
+    --login-bg-alpha: 100%;
+    @apply [backdrop-filter:none]!;
+  }
+}
+
 .login-card {
   @apply bg-surface flex flex-col gap-7 rounded-4xl p-14 shadow-lg max-md:rounded-3xl max-md:p-9;
 }
