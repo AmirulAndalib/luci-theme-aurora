@@ -12,7 +12,7 @@
 {%
 	import { getuid, getspnam } from 'luci.core';
 	import { cursor } from 'uci';
-	import { lsdir, readfile, stat } from 'fs';
+	import { lsdir, readfile } from 'fs';
 
 	const boardinfo = prefetched_boardinfo ?? (ubus.call('system', 'board') ?? {});
 	const hostname = striptags(boardinfo.hostname ?? '?');
@@ -36,17 +36,6 @@
 		sort(patch_files);
 		sort(patch_scripts);
 	}
-	// Static-asset cache buster: the installed file's mtime. The version query
-	// luci.mk stamps at package build (?v=PKG_VERSION) never changes across
-	// snapshot upgrades, and scp'd dev files carry no stamp at all -- both
-	// left browsers trusting stale CSS, which is why a freshly applied login
-	// background "needed" a hard refresh: the cached sheet predated the
-	// .page-bg rules. mtime busts the instant new bytes land, on every
-	// delivery channel.
-	function asset_v(rel) {
-		return stat(`/www${rel}`)?.mtime ?? 0;
-	}
-
 	// Both background tokens store a url('...') wrapper; preload wants the
 	// bare URL, and a data: URI (an inline LQIP-sized value) needs no preload.
 	function bg_preload_url(raw) {
@@ -190,18 +179,18 @@
 		{% if (_loginBgUrl): %}
 		<link rel="preload" as="image" href="{{ entityencode(_loginBgUrl, true) }}">
 		{% endif %}
-		<link rel="stylesheet" href="{{ media }}/login.css?v={{ asset_v(`${media}/login.css`) }}">
+		<link rel="stylesheet" href="{{ media }}/login.css">
 		{% else %}
 		{% const _mainBgUrl = tokens.struct_main_bg ? bg_preload_url(tokens.struct_main_bg) : null; -%}
 		{% if (_mainBgUrl): %}
 		<link rel="preload" as="image" href="{{ entityencode(_mainBgUrl, true) }}">
 		{% endif %}
-		<link rel="stylesheet" href="{{ media }}/main.css?v={{ asset_v(`${media}/main.css`) }}">
+		<link rel="stylesheet" href="{{ media }}/main.css">
 		{% for (let patch in patch_files): %}
-		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css?v={{ asset_v(`${media}/patches/${patch}.css`) }}">
+		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css">
 		{% endfor %}
 		{% for (let patch in patch_scripts): %}
-		<script defer src="{{ media }}/patches/{{ patch }}.js?v={{ asset_v(`${media}/patches/${patch}.js`) }}"></script>
+		<script defer src="{{ media }}/patches/{{ patch }}.js"></script>
 		{% endfor %}
 		{% endif %}
 		{% if (font_preload): %}
@@ -236,7 +225,7 @@
 		{% endif %}
 		{% if (!blank_page): %}
 		<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
-		<script src="{{ resource }}/cbi.js?v={{ asset_v(`${resource}/cbi.js`) }}"></script>
+		<script src="{{ resource }}/cbi.js"></script>
 		{% endif %}
 	</head>
 
