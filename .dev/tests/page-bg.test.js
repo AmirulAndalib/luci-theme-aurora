@@ -133,3 +133,24 @@ test("the studio background component ships its layout as a page patch", () => {
     assert.ok(patch.includes(cls), `${cls} missing from the patch`);
   }
 });
+
+// 静态资源缓存指纹 = 文件 mtime:快照升级(PKG_VERSION 不变)、scp 开发部署
+// (无任何版本串)都能即时失效浏览器缓存——"应用了背景要硬刷新才生效"的
+// 根子就是缓存指纹在这两条渠道上都失灵。
+test("theme assets carry an mtime cache buster", () => {
+  const ut = readFileSync(
+    new URL("../../ucode/template/themes/aurora/header.ut", import.meta.url),
+    "utf8"
+  );
+  assert.match(ut, /function asset_v/);
+  assert.match(ut, /stat\(`\/www\$\{rel\}`\)/);
+  for (const ref of [
+    "login.css?v={{ asset_v",
+    "main.css?v={{ asset_v",
+    ".css?v={{ asset_v(`${media}/patches/",
+    ".js?v={{ asset_v(`${media}/patches/",
+    "cbi.js?v={{ asset_v",
+  ]) {
+    assert.ok(ut.includes(ref), `${ref} missing`);
+  }
+});
