@@ -1,0 +1,88 @@
+/*
+  PATCH: admin-system-aurora (luci-app-aurora-config — Page Backgrounds)
+  Loaded on-demand by header.ut only when data-page matches this filename.
+  Native declarations keep this standalone patch free of Tailwind helper
+  output; theme values come through the :root custom properties.
+
+  The background component (segmented target switch, live preview, slider
+  rows) renders inside LuCI's .cbi-value flex rows; these classes take the
+  rows out of the label/field two-column layout so the V1 single-column
+  flow holds together instead of being reflowed by the form grid.
+*/
+
+[data-bg-target].cbi-value,
+.bg-seg-row.cbi-value {
+  display: block;
+}
+
+[data-bg-target] > .cbi-value-title,
+.bg-seg-row > .cbi-value-title {
+  display: none;
+}
+
+[data-bg-target] > .cbi-value-field,
+.bg-seg-row > .cbi-value-field {
+  max-width: 620px;
+}
+
+/* theme-switcher 同款分段胶囊 */
+.bg-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.bg-seg button {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.bg-seg button.on {
+  background: var(--text);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.bg-preview {
+  position: relative;
+  overflow: hidden;
+  height: 210px;
+  margin: 0.75rem 0 0.25rem;
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--radius-base) * 1.5);
+  background: var(--bg);
+}
+
+.bg-srow {
+  display: grid;
+  grid-template-columns: minmax(6.5em, max-content) 1fr 3.2em;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.bg-srow label {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.bg-srow input[type="range"] {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
+.bg-srow output {
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

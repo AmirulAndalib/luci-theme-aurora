@@ -125,3 +125,11 @@ test("login tunables default to today's exact look", () => {
   );
   assert.match(ut, /blank_page && tokens\.struct_login_bg[^\n]*data-bg|\(blank_page \? tokens\.struct_login_bg : tokens\.struct_main_bg\)[^\n]*data-bg/);
 });
+
+// studio 背景组件的版式类走页面补丁通道(admin-system-aurora),不打内联
+test("the studio background component ships its layout as a page patch", () => {
+  const patch = read("../src/media/patches/admin-system-aurora.css");
+  for (const cls of [".bg-seg", ".bg-preview", ".bg-srow", "[data-bg-target]"]) {
+    assert.ok(patch.includes(cls), `${cls} missing from the patch`);
+  }
+});
